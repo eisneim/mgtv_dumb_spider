@@ -1,21 +1,28 @@
 import scrapy
 from scrapy import Request
+from scrapy.conf import settings
 import json
+from urllib.parse import urlsplit, parse_qs
+import math
+
 from mgtv_spider.models.comment import CommentItem
 from mgtv_spider.models.drama import DramaItem
 from mgtv_spider.models.episode import EpisodeItem
 from mgtv_spider.models.star import StarItem
 
+# those pramameter should not be changed, the api is fixed to those number
+# strange isn't it?
 VIDEO_PER_PAGE = 40
+# COMMENTS_PER_PAGE = 15
 
 
 class MgtvSpider(scrapy.Spider):
   name = "mgtv"
 
   startPage = "http://www.mgtv.com/b/293193/3960734.html"
-  startVidId = "3960734"
+  startVidId = settings.get("START_VID_ID") or "3960734"
   URL_VID = "http://pcweb.api.mgtv.com/episode/list?video_id={videoId}&page={page}&size={size}"
-  URL_COMMENT = "http://comment.mgtv.com/video_comment/list/?type=hunantv2014&subject_id={videoId}&page={}"
+  URL_COMMENT = "http://comment.mgtv.com/video_comment/list/?drama_id={dramaId}&subject_id={videoId}&page={page}&type=hunantv2014"
   URL_STAR = "http://pcweb.api.mgtv.com/star/list?video_id={videoId}&drama={dramaId}"
   # 电视剧热播榜
   URL_RANK = "http://rc.mgtv.com/pc/ranklist?rt=c&c=2&guid=890357281248776192&limit=200"
@@ -48,19 +55,23 @@ class MgtvSpider(scrapy.Spider):
     theDrama["stars"] = []
     theDrama["episodes"] = result["list"]
 
+    firstVideoId = theDrama["episodes"][0]["video_id"]
+
     for idx in range(totalPage - currentPage):
       pangeNum = currentPage + idx + 1
-      yield Request(self.URL_VID.format(videoId=self.startVidId,
+      yield Request(self.URL_VID.format(videoId=firstVideoId,
         page=pangeNum, size=VIDEO_PER_PAGE), self.parseVideoListOnePage)
 
     yield theDrama
-    firstVideoId = theDrama["episodes"][0]["video_id"]
+
 
     # get related series
     yield Request(self.URL_LIKE.format(videoId=firstVideoId), self.parseSimilarDrama)
     # get actor and actress info
     yield Request(self.URL_STAR.format(videoId=firstVideoId, dramaId=theDrama["id"]),
       self.parseStars)
+    # get comments
+    yield self.parseCommentsForOneVideo(theDrama["id"], firstVideoId)
 
   # only parse rest of the video pages
   # @TODO: parseVideoListOnePage is ugly, should refactor
@@ -72,6 +83,44 @@ class MgtvSpider(scrapy.Spider):
       "episodes": eps
     }
     yield episodes
+
+  def parseCommentsForOneVideo(self, dramaId, videoId):
+    return Request(self.URL_COMMENT.format(
+      dramaId=dramaId, videoId=videoId, page=1), self.parseCommentsFirstPage)
+
+  def parseCommentsFirstPage(self, response):
+    result = json.loads(response.text)
+    comments = result["comments"]
+    perpage = result["perpage"]
+    count = result["total_number"]
+    urlobj = parse_qs(urlsplit(response.url).query)
+    dramaId = urlobj["drama_id"][0]
+    videoId = urlobj["subject_id"][0]
+    print(">>>>> comments for drama:{} and video: {}".format(dramaId, videoId))
+    yield {
+      "drama": dramaId,
+      "videoId": videoId,
+      "comments": comments
+    }
+
+    totalPages = math.ceil(count / perpage)
+    for p in range(totalPages):
+      pageNum = p + 1
+      if pageNum == 1:
+        continue
+      yield Request(self.URL_COMMENT.format(
+        dramaId=dramaId, videoId=videoId, page=pageNum), self.parseComments)
+
+  def parseComments(self, response):
+    comments = json.loads(response.text)["comments"]
+    urlobj = parse_qs(urlsplit(response.url).query)
+    dramaId = urlobj["drama_id"]
+    videoId = urlobj["subject_id"]
+    yield {
+      "drama": dramaId,
+      "videoId": videoId,
+      "comments": comments
+    }
 
   def parseSimilarDrama(self, response):
     dramas = json.loads(response.text)["data"]

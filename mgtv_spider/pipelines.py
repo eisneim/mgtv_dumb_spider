@@ -5,10 +5,10 @@
 # Don't forget to add your pipeline to the ITEM_PIPELINES setting
 # See: http://doc.scrapy.org/en/latest/topics/item-pipeline.html
 import pymongo
-from scrapy import settings
+from scrapy.conf import settings
 
 COL_DRAMA = "dramas"
-
+COL_COMMENT = "comments"
 
 class MgtvSpiderPipeline(object):
 
@@ -19,7 +19,8 @@ class MgtvSpiderPipeline(object):
 
   @classmethod
   def from_crawler(cls, crawler):
-    uri = crawler.settings.get("MONGO_URI")
+    uri = settings.get("MONGO_URI")
+    print("connecting to mongodb: {}".format(uri))
     return cls(
       uri.get("MONGO_HOST"),
       uri.get("MONGO_PORT"),
@@ -53,6 +54,15 @@ class MgtvSpiderPipeline(object):
         "stars": { "$each": stars }
       } })
 
+  def saveComments(self, item):
+    dramaId = item["drama"]
+    videoId = item["videoId"]
+    for comment in item["comments"]:
+      comment["dramaId"] = dramaId
+      # comment["videoId"] = videoId
+      self.db[COL_COMMENT].insert(comment)
+
+
   def process_item(self, item, spider):
     # this is a drama
     if item.get("title") and item.get("total"):
@@ -61,8 +71,11 @@ class MgtvSpiderPipeline(object):
     elif item.get("drama") and item.get("episodes"): # ep list
       print(" --------- ep list")
       # self.appendEpisodes(item)
-    elif item.get("drama") and item.get("stars"): # ep list
+    elif item.get("drama") and item.get("stars"): # star list
       print(" --------- stars list")
       # self.saveStars(item)
+    elif item.get("drama") and item.get("comments"): # comments list
+      print(" --------- comments list")
+      # self.saveComments(item)
 
     return item
