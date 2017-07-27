@@ -28,6 +28,9 @@ ROBOTSTXT_OBEY = False
 # See http://scrapy.readthedocs.org/en/latest/topics/settings.html#download-delay
 # See also autothrottle settings and docs
 DOWNLOAD_DELAY = 3
+
+VIDEO_SAVE_FOLDER = "/Volumes/download_temp/mgtv"
+
 # Override the default request headers:
 DEFAULT_REQUEST_HEADERS = {
   'User-Agent':'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_12_2) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/59.0.3071.115 Safari/537.36',
@@ -46,7 +49,7 @@ MONGO_URI = {
 }
 
 MONGO_DATABASE = {
-  'DB_NAME' : "zhihuUsers",
+  'DB_NAME' : "mgtv",
 }
 
 REDIRECT_ENABLED = False
