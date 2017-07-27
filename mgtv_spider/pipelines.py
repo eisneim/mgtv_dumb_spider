@@ -35,7 +35,7 @@ class MgtvSpiderPipeline(object):
   def saveDrama(self, item):
     self.db[COL_DRAMA].update(
       { "id": item["id"] },
-      { "$set": dir(item) }, True)
+      { "$set": dict(item) }, True)
 
   def appendEpisodes(self, item):
     eps = item["episodes"]
@@ -67,15 +67,15 @@ class MgtvSpiderPipeline(object):
     # this is a drama
     if item.get("title") and item.get("total"):
       print(" --------- this is drama")
-      # self.saveDrama(item)
+      self.saveDrama(item)
     elif item.get("drama") and item.get("episodes"): # ep list
       print(" --------- ep list")
-      # self.appendEpisodes(item)
+      self.appendEpisodes(item)
     elif item.get("drama") and item.get("stars"): # star list
       print(" --------- stars list")
-      # self.saveStars(item)
+      self.saveStars(item)
     elif item.get("drama") and item.get("comments"): # comments list
       print(" --------- comments list")
-      # self.saveComments(item)
+      self.saveComments(item)
 
     return item

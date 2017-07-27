@@ -70,19 +70,24 @@ class MgtvSpider(scrapy.Spider):
     # get actor and actress info
     yield Request(self.URL_STAR.format(videoId=firstVideoId, dramaId=theDrama["id"]),
       self.parseStars)
-    # get comments
-    yield self.parseCommentsForOneVideo(theDrama["id"], firstVideoId)
+    # get comments for each video
+    for vid in theDrama["episodes"]:
+      yield self.parseCommentsForOneVideo(theDrama["id"], vid["video_id"])
 
   # only parse rest of the video pages
   # @TODO: parseVideoListOnePage is ugly, should refactor
   def parseVideoListOnePage(self, response):
     result = json.loads(response.text)["data"]
     eps = result["list"]
+    dramaId = eps[0]["url"].split("/")[2]
     episodes = {
-      "drama": eps[0]["url"].split("/")[2],
+      "drama": dramaId,
       "episodes": eps
     }
     yield episodes
+    # get comments for each video
+    for vid in eps:
+      yield self.parseCommentsForOneVideo(dramaId, vid["video_id"])
 
   def parseCommentsForOneVideo(self, dramaId, videoId):
     return Request(self.URL_COMMENT.format(
@@ -114,8 +119,9 @@ class MgtvSpider(scrapy.Spider):
   def parseComments(self, response):
     comments = json.loads(response.text)["comments"]
     urlobj = parse_qs(urlsplit(response.url).query)
-    dramaId = urlobj["drama_id"]
-    videoId = urlobj["subject_id"]
+    # it returnes a list!!!!
+    dramaId = urlobj["drama_id"][0]
+    videoId = urlobj["subject_id"][0]
     yield {
       "drama": dramaId,
       "videoId": videoId,
