@@ -43,7 +43,12 @@ class MgtvSpider(scrapy.Spider):
 
     theDrama = DramaItem()
     # extract drama id from episoid url
-    firstEpUrl = result["list"][0]["url"]
+    episodes = result["list"]
+    if episodes is None or len(episodes) < 1:
+      print(">>>> no episodes in this drama: {}".format(response.url))
+      return
+
+    firstEpUrl = episodes[0]["url"]
     theDrama["id"] = firstEpUrl.split("/")[2]
 
     infoFields = ["desc", "isvip", "title", "type"]
@@ -53,9 +58,9 @@ class MgtvSpider(scrapy.Spider):
     theDrama["total"] = result["total"]
     theDrama["count"] = result["count"]
     theDrama["stars"] = []
-    theDrama["episodes"] = result["list"]
+    theDrama["episodes"] = episodes
 
-    firstVideoId = theDrama["episodes"][0]["video_id"]
+    firstVideoId = episodes[0]["video_id"]
 
     for idx in range(totalPage - currentPage):
       pangeNum = currentPage + idx + 1
