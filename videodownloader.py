@@ -9,7 +9,9 @@ from os.path import exists
 
 # thos videos are not downloadable for some reason
 # have to escape them manually
-corruptedVideos = ["417897", "417899"]
+corruptedVideos = ["417897", "417899", "417902", "417903", "417905", "417906", "417920", "417916", "417912", "417910", "417921",
+  # 放弃我抓紧我 - 8
+  "3740132", "3741915", "3752656"]
 
 
 def downloadMgtvVideo(url, outputDir, streamId="ld"):
@@ -44,7 +46,7 @@ def downloadOneVideo(drama, ep):
       break
     except Exception as e:
       # print("Unexpected error:", sys.exc_info()[0])
-      print(traceback.format_exc())
+      print("[Error]", traceback.format_exc())
 
       tryCount += 1
       if tryCount > 5:
