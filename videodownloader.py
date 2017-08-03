@@ -11,7 +11,8 @@ from os.path import exists
 # have to escape them manually
 corruptedVideos = ["417897", "417899", "417902", "417903", "417905", "417906", "417920", "417916", "417912", "417910", "417921",
   # 放弃我抓紧我 - 8
-  "3740132", "3741915", "3752656"]
+  "3740132", "3741915", "3752656",
+  "1874358", "1869189", "1873084", "1874359"]
 
 
 def downloadMgtvVideo(url, outputDir, streamId="ld"):
@@ -49,7 +50,7 @@ def downloadOneVideo(drama, ep):
       print("[Error]", traceback.format_exc())
 
       tryCount += 1
-      if tryCount > 5:
+      if tryCount > 3:
         print(" >>>> [Error] Maxium download try reached, exit now")
         isCanceld = True
         break

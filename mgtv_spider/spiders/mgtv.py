@@ -4,23 +4,30 @@ from scrapy.conf import settings
 import json
 from urllib.parse import urlsplit, parse_qs
 import math
+import pymongo
 
-from mgtv_spider.models.comment import CommentItem
+# from mgtv_spider.models.comment import CommentItem
 from mgtv_spider.models.drama import DramaItem
-from mgtv_spider.models.episode import EpisodeItem
-from mgtv_spider.models.star import StarItem
+# from mgtv_spider.models.episode import EpisodeItem
+# from mgtv_spider.models.star import StarItem
+
 
 # those pramameter should not be changed, the api is fixed to those number
 # strange isn't it?
 VIDEO_PER_PAGE = 40
 # COMMENTS_PER_PAGE = 15
+COL_DRAMA = "dramas"
+COL_COMMENT = "comments"
 
 
 class MgtvSpider(scrapy.Spider):
   name = "mgtv"
 
   startPage = "http://www.mgtv.com/b/293193/3960734.html"
-  startVidId = settings.get("START_VID_ID") or "3960734"
+  # scrapy crawl myspider -s START_VID_ID=123
+  startVidId = settings.get("START_VID_ID") or "310305"
+  print(" >>>>>> start video id: {}".format(startVidId))
+
   URL_VID = "http://pcweb.api.mgtv.com/episode/list?video_id={videoId}&page={page}&size={size}"
   URL_COMMENT = "http://comment.mgtv.com/video_comment/list/?drama_id={dramaId}&subject_id={videoId}&page={page}&type=hunantv2014"
   URL_STAR = "http://pcweb.api.mgtv.com/star/list?video_id={videoId}&drama={dramaId}"
@@ -29,12 +36,16 @@ class MgtvSpider(scrapy.Spider):
   # similar tv show
   URL_LIKE = "http://rc.mgtv.com/pc/like?vid={videoId}"
 
+  def __init__(self):
+    uri = settings.get("MONGO_URI")
+    client = pymongo.MongoClient(uri.get("MONGO_HOST"), uri.get("MONGO_PORT"))
+    self.db = client[settings.get("MONGO_DATABASE").get("DB_NAME")]
+
   def start_requests(self):
     yield Request(self.URL_VID.format(videoId=self.startVidId,
       page=1, size=VIDEO_PER_PAGE), self.parseVideoList)
     # get popular dramas
     yield Request(self.URL_RANK, self.parseRanks)
-
 
   def parseVideoList(self, response):
     result = json.loads(response.text)["data"]
@@ -62,22 +73,28 @@ class MgtvSpider(scrapy.Spider):
 
     firstVideoId = episodes[0]["video_id"]
 
-    for idx in range(totalPage - currentPage):
-      pangeNum = currentPage + idx + 1
-      yield Request(self.URL_VID.format(videoId=firstVideoId,
-        page=pangeNum, size=VIDEO_PER_PAGE), self.parseVideoListOnePage)
-
-    yield theDrama
-
+    # make sure it's not already in database
+    isDramaSaved = self.db[COL_DRAMA].count({"id": theDrama["id"]}) > 0
+    if isDramaSaved:
+      print("drama: {} is already in db".format(theDrama["title"]))
+    else:
+      yield theDrama
+      # get actor and actress info
+      yield Request(self.URL_STAR.format(videoId=firstVideoId, dramaId=theDrama["id"]),
+        self.parseStars)
+      # get the rest of episodes
+      for idx in range(totalPage - currentPage):
+        pangeNum = currentPage + idx + 1
+        yield Request(self.URL_VID.format(videoId=firstVideoId,
+          page=pangeNum, size=VIDEO_PER_PAGE), self.parseVideoListOnePage)
 
     # get related series
     yield Request(self.URL_LIKE.format(videoId=firstVideoId), self.parseSimilarDrama)
-    # get actor and actress info
-    yield Request(self.URL_STAR.format(videoId=firstVideoId, dramaId=theDrama["id"]),
-      self.parseStars)
+
     # get comments for each video
-    for vid in theDrama["episodes"]:
-      yield self.parseCommentsForOneVideo(theDrama["id"], vid["video_id"])
+    if not isDramaSaved:
+      for vid in theDrama["episodes"]:
+        yield self.parseCommentsForOneVideo(theDrama["id"], vid["video_id"])
 
   # only parse rest of the video pages
   # @TODO: parseVideoListOnePage is ugly, should refactor
