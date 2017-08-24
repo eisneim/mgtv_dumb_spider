@@ -12,7 +12,8 @@ from os.path import exists
 corruptedVideos = ["417897", "417899", "417902", "417903", "417905", "417906", "417920", "417916", "417912", "417910", "417921",
   # 放弃我抓紧我 - 8
   "3740132", "3741915", "3752656",
-  "1874358", "1869189", "1873084", "1874359"]
+  "1874358", "1869189", "1873084", "1874359",
+  "1864733"]
 
 
 def downloadMgtvVideo(url, outputDir, streamId="ld"):
@@ -50,7 +51,7 @@ def downloadOneVideo(drama, ep):
       print("[Error]", traceback.format_exc())
 
       tryCount += 1
-      if tryCount > 3:
+      if tryCount >= 2:
         print(" >>>> [Error] Maxium download try reached, exit now")
         isCanceld = True
         break
@@ -68,6 +69,10 @@ def downloadOneVideo(drama, ep):
 def downloadForOneDrama(drama):
   dramaname = drama["title"]
   print(" >>>> donwload episodes for drama: {}".format(dramaname))
+  if drama["isvip"] != "0":
+    print(" >>> {} is vip only, skiping".format(dramaname))
+    return
+
   for ep in drama.get("episodes"):
     epNumber = ep["t1"]
     if str(ep["video_id"]) in corruptedVideos:

@@ -77,6 +77,7 @@ class MgtvSpider(scrapy.Spider):
     isDramaSaved = self.db[COL_DRAMA].count({"id": theDrama["id"]}) > 0
     if isDramaSaved:
       print("drama: {} is already in db".format(theDrama["title"]))
+
     else:
       yield theDrama
       # get actor and actress info
@@ -95,6 +96,13 @@ class MgtvSpider(scrapy.Spider):
     if not isDramaSaved:
       for vid in theDrama["episodes"]:
         yield self.parseCommentsForOneVideo(theDrama["id"], vid["video_id"])
+    else:
+      # this drama is already saved by some comment might not be saved, check that
+      savedDramaData = self.db[COL_DRAMA].find_one({ "id": theDrama["id"] })
+      for vid in savedDramaData["episodes"]:
+        if self.db[COL_COMMENT].count({ "videoId": vid["video_id"] }) < 10 :
+          print("---------- adding comments for video: {}".format(vid["video_id"]))
+          yield self.parseCommentsForOneVideo(theDrama["id"], vid["video_id"])
 
   # only parse rest of the video pages
   # @TODO: parseVideoListOnePage is ugly, should refactor
